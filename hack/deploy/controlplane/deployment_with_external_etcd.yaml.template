@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: controlplane
-        image: quay.io/open-cluster-management/controlplane
+        image: quay.io/yuyao/multicluster-controlplane
         imagePullPolicy: Always
         args:
           - "/multicluster-controlplane"
@@ -38,8 +38,12 @@ spec:
           - "--tls-cert-file=/controlplane/cert/serving-kube-apiserver.crt"
           - "--tls-private-key-file=/controlplane/cert/serving-kube-apiserver.key"
           - "--feature-gates=DefaultClusterSet=true,OpenAPIV3=false"
-          - "--enable-embedded-etcd=true"
-          - "--etcd-servers=https://127.0.0.1:2379"
+          - "--enable-embedded-etcd=false"
+          - "--etcd-servers=http://127.0.0.1:2379"
+          - "--etcd-cafile=/controlplane/etcdconfig/ca.pem"
+          - "--etcd-certfile=/controlplane/etcdconfig/client.pem"
+          - "--etcd-keyfile=/controlplane/etcdconfig/client-key.pem"
+          - "--etcd-prefix=/storage-prefix"
           - "--service-cluster-ip-range=10.0.0.0/24"
           - "--service-account-issuer=https://kubernetes.default.svc"
           - "--external-hostname=API_HOST"
@@ -54,13 +58,13 @@ spec:
         - name: controlplane-cert
           mountPath: /controlplane/cert
           readOnly: true
-        - mountPath: /.ocmconfig
-          name: ocmconfig 
+        - name: etcdconfig 
+          mountPath: /controlplane/etcdconfig
+          readOnly: true
       volumes:
       - name: controlplane-cert
         secret:
           secretName: controlplane-cert
-      - name: ocmconfig 
-        emptyDir:
-          sizeLimit: 500Mi
-
+      - name: etcdconfig 
+        secret:
+          secretName: etcd-cert    

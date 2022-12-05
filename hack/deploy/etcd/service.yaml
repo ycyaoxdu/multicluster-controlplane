@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: multicluster-etcd
+  labels:
+    component: multicluster-etcd
+spec:
+  ports:
+    - port: 2379
+      protocol: TCP
+      targetPort: 2379
+  selector:
+    app: multicluster-etcd

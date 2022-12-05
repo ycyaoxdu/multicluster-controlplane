@@ -162,16 +162,38 @@ function start_apiserver {
     fi
 
     cp ${CERT_DIR}/kube-aggregator.kubeconfig ${CERT_DIR}/kubeconfig
-    cp hack/deploy/controlplane/deployment.yaml hack/deploy/controlplane/deployment.yaml.tmp
     cp hack/deploy/controlplane/kustomization.yaml  hack/deploy/controlplane/kustomization.yaml.tmp
+    # TODO(ycyaoxdu): refine this
+    if [[ ${ENABLE_EMBEDDED_ETCD} == true ]]; then
+        cp hack/deploy/controlplane/deployment_with_embedded_etcd.yaml.template hack/deploy/controlplane/deployment.yaml
+        kustomize # delete secret: etcd-cert
+    else 
+        cp hack/deploy/controlplane/deployment_with_external_etcd.yaml.template hack/deploy/controlplane/deployment.yaml
+        if [[ -z ${ETCD_NS} || -z ${ETCD_SERVICE_NAME} ]]; then
+            echo "environment variable ETCD_NS and ETCD_SERVICE_NAME should be set"
+            exit 1
+        fi 
+        ETCD_SERVICE_IP=$(${KUBECTL} -n ${ETCD_NS} get svc/${ETCD_SERVICE_NAME} -o jsonpath='{.spec.clusterIP}')
+        sed -i "s,127.0.0.1:2379,${ETCD_SERVICE_IP}:2379,g" hack/deploy/controlplane/deployment.yaml
+        sed -i "s,storage-prefix,${HUB_NAME},g" hack/deploy/controlplane/deployment.yaml
+
+        sed -i "$(sed -n  '/secretGenerator/=' hack/deploy/controlplane/kustomization.yaml) a \  - etcd-cert/client-key.pem" hack/deploy/controlplane/kustomization.yaml
+        sed -i "$(sed -n  '/secretGenerator/=' hack/deploy/controlplane/kustomization.yaml) a \  - etcd-cert/client.pem" hack/deploy/controlplane/kustomization.yaml
+        sed -i "$(sed -n  '/secretGenerator/=' hack/deploy/controlplane/kustomization.yaml) a \  - etcd-cert/ca.pem " hack/deploy/controlplane/kustomization.yaml
+        sed -i "$(sed -n  '/secretGenerator/=' hack/deploy/controlplane/kustomization.yaml) a \  files:" hack/deploy/controlplane/kustomization.yaml
+        sed -i "$(sed -n  '/secretGenerator/=' hack/deploy/controlplane/kustomization.yaml) a - name: etcd-cert" hack/deploy/controlplane/kustomization.yaml
+    fi  
+
     sed -e 's,API_HOST,'${API_HOST}',' hack/deploy/controlplane/deployment.yaml
     cd hack/deploy/controlplane && ${KUSTOMIZE} edit set namespace ${HUB_NAME} && ${KUSTOMIZE} edit set image quay.io/open-cluster-management/controlplane=${IMAGE_NAME}
     cd ../../../
     ${KUSTOMIZE} build hack/deploy/controlplane | ${KUBECTL} apply -f -
-    mv hack/deploy/controlplane/deployment.yaml.tmp hack/deploy/controlplane/deployment.yaml
     mv hack/deploy/controlplane/kustomization.yaml.tmp hack/deploy/controlplane/kustomization.yaml
+    rm hack/deploy/controlplane/deployment.yaml
 
-    cp -rf ${CERT_DIR} ${OCM_DEPLOY_DIRECTORY}/cert-${HUB_NAME}
+    rm -rf ${OCM_DEPLOY_DIRECTORY}/cert-${HUB_NAME}
+    mkdir -p ${OCM_DEPLOY_DIRECTORY}/cert-${HUB_NAME}
+    cp -f ${CERT_DIR}/* ${OCM_DEPLOY_DIRECTORY}/cert-${HUB_NAME}
 }
 
 function check_multicluster-controlplane {

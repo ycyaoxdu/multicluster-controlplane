@@ -14,7 +14,11 @@
 # Dependency directories (remove the comment below to include it)
 vendor/
 bin/
-
+multicluster_ca/
+hack/deploy/cert-*/
+hack/deploy/controlplane/cert/
+hack/deploy/controlplane/etcd-cert/
+hack/deploy/etcd/etcd-cert/
 # IDE config files
 .dead/
 .vscode/

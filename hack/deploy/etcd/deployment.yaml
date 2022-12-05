@@ -1,0 +1,47 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: multicluster-etcd
+  labels:
+    app: multicluster-etcd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: multicluster-etcd
+  template:
+    metadata:
+      labels:
+        app: multicluster-etcd
+    spec:
+      containers:
+      - name: etcd
+        image: quay.io/coreos/etcd
+        imagePullPolicy: Always
+        args:
+          - "/usr/local/bin/etcd"
+          - "--data-dir=/.multicluster-config/data"
+          - "--client-cert-auth"
+          - "--trusted-ca-file=/client-ca/ca.pem"
+          - "--advertise-client-urls=http://localhost:2379"
+          - "--listen-client-urls=http://0.0.0.0:2379"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          privileged: false
+          runAsNonRoot: true
+        volumeMounts:
+        - name: trusted
+          mountPath: /client-ca
+          readOnly: true
+        - mountPath: /.multicluster-config
+          name: multicluster-config
+      volumes:
+      - name: trusted
+        secret:
+          secretName: trusted-ca
+      - name: multicluster-config 
+        persistentVolumeClaim:
+          claimName: multicluster-etcd-pvc
