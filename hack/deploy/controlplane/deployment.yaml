@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: controlplane
-        image: quay.io/open-cluster-management/multicluster-controlplane
+        image: quay.io/yuyao/multicluster-controlplane:all-in-one
         imagePullPolicy: IfNotPresent
         args:
           - "/multicluster-controlplane"

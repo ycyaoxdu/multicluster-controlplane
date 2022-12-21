@@ -31,19 +31,18 @@ resources:
 images:
 - name: quay.io/open-cluster-management/multicluster-controlplane
   newName: quay.io/open-cluster-management/multicluster-controlplane
-  newTag: latest
 
 secretGenerator:
-- name: controlplane-cert
-  files:
+- files:
   - cert/kube-serviceaccount.key
   - cert/client-ca.crt
   - cert/client-ca.key
   - cert/serving-kube-apiserver.crt
   - cert/serving-kube-apiserver.key
   - cert/kube-aggregator.kubeconfig
-- name: controlplane-kubeconfig
-  files:
+  name: controlplane-cert
+- files:
   - kubeconfig=cert/kube-aggregator.kubeconfig
+  name: controlplane-kubeconfig
 generatorOptions:
- disableNameSuffixHash: true
+  disableNameSuffixHash: true
