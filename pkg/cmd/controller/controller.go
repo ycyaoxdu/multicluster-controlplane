@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"open-cluster-management.io/multicluster-controlplane/pkg/controllers"
 	"open-cluster-management.io/multicluster-controlplane/pkg/servers"
 	"open-cluster-management.io/multicluster-controlplane/pkg/servers/options"
 
@@ -21,25 +22,7 @@ func NewController() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "server",
 		Short: "Start a Multicluster Controlplane Server",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			verflag.PrintAndExitIfRequested()
-			cliflag.PrintFlags(cmd.Flags())
-
-			if err := logsapi.ValidateAndApply(options.Logs, utilfeature.DefaultFeatureGate); err != nil {
-				return err
-			}
-
-			stopChan := genericapiserver.SetupSignalHandler()
-			if err := options.Complete(stopChan); err != nil {
-				return err
-			}
-
-			if err := options.Validate(); err != nil {
-				return err
-			}
-
-			return servers.NewServer(*options).Start(stopChan)
-		},
+		RunE:  ServerRunHandler(options),
 		Args: func(cmd *cobra.Command, args []string) error {
 			for _, arg := range args {
 				if len(arg) > 0 {
@@ -52,4 +35,30 @@ func NewController() *cobra.Command {
 
 	options.AddFlags(cmd.Flags())
 	return cmd
+}
+
+func ServerRunHandler(options *options.ServerRunOptions, cis ...controllers.ControllerInstaller) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		verflag.PrintAndExitIfRequested()
+		cliflag.PrintFlags(cmd.Flags())
+
+		if err := logsapi.ValidateAndApply(options.Logs, utilfeature.DefaultFeatureGate); err != nil {
+			return err
+		}
+
+		stopChan := genericapiserver.SetupSignalHandler()
+		if err := options.Complete(stopChan); err != nil {
+			return err
+		}
+
+		if err := options.Validate(); err != nil {
+			return err
+		}
+
+		server := servers.NewServer(*options)
+		for _, ci := range cis {
+			server.AddController(ci.Name, ci.Controller)
+		}
+		return server.Start(stopChan)
+	}
 }
